@@ -124,4 +124,5 @@ interface CreateProjectParams {
 interface Generate3DViewParams {
     sourceImage: string;
     projectId?: string | null;
+    style?: import("./lib/constants").RenderStyleId;
 }

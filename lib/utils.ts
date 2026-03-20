@@ -120,3 +120,57 @@ export const imageUrlToPngBlob = async (url: string): Promise<Blob | null> => {
         return null;
     }
 };
+
+const MAX_AI_INPUT_DIMENSION = 1500;
+const COMPRESS_QUALITY = 0.85;
+const COMPRESS_FORMAT = "image/jpeg";
+
+/**
+ * Resize and compress an image data-URL so it is small enough for fast
+ * AI processing.  The longest side is capped at `MAX_AI_INPUT_DIMENSION`
+ * and the result is JPEG-compressed at 85 % quality.
+ *
+ * Returns a new base-64 data-URL (image/jpeg).  If anything goes wrong
+ * the *original* data-URL is returned unchanged so the call-site keeps
+ * working.
+ */
+export const preprocessImageForAI = async (
+    dataUrl: string,
+): Promise<string> => {
+    if (typeof window === "undefined") return dataUrl;
+
+    try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        const loaded = await new Promise<HTMLImageElement>((resolve, reject) => {
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error("Failed to load image"));
+            img.src = dataUrl;
+        });
+
+        let width = loaded.naturalWidth || loaded.width;
+        let height = loaded.naturalHeight || loaded.height;
+        if (!width || !height) return dataUrl;
+
+        // Only downscale – never upscale
+        if (width > MAX_AI_INPUT_DIMENSION || height > MAX_AI_INPUT_DIMENSION) {
+            const scale = MAX_AI_INPUT_DIMENSION / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return dataUrl;
+
+        ctx.drawImage(loaded, 0, 0, width, height);
+
+        return canvas.toDataURL(COMPRESS_FORMAT, COMPRESS_QUALITY);
+    } catch {
+        // Fall back to the original so functionality is never broken
+        return dataUrl;
+    }
+};

@@ -1,10 +1,11 @@
 import { useNavigate, useOutletContext, useParams} from "react-router";
 import {useEffect, useRef, useState} from "react";
 import {generate3DView} from "../../lib/ai.action";
-import {Box, Download, RefreshCcw, Share2, X} from "lucide-react";
+import {Box, Download, Palette, RefreshCcw, Share2, X} from "lucide-react";
 import Button from "../../components/ui/Button";
 import {createProject, getProjectById} from "../../lib/puter.action";
 import {ReactCompareSlider, ReactCompareSliderImage} from "react-compare-slider";
+import {DEFAULT_STYLE_ID, RENDER_STYLES, type RenderStyleId} from "../../lib/constants";
 
 const VisualizerId = () => {
     const { id } = useParams();
@@ -18,6 +19,7 @@ const VisualizerId = () => {
 
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentImage, setCurrentImage] = useState<string | null>(null);
+    const [selectedStyle, setSelectedStyle] = useState<RenderStyleId>(DEFAULT_STYLE_ID);
 
     const handleBack = () => navigate('/');
     const handleExport = () => {
@@ -31,12 +33,12 @@ const VisualizerId = () => {
         document.body.removeChild(link);
     }
 
-    const runGeneration = async (item: DesignItem) => {
+    const runGeneration = async (item: DesignItem, style: RenderStyleId = selectedStyle) => {
         if(!id || !item.sourceImage) return;
 
         try {
             setIsProcessing(true);
-            const result = await generate3DView({ sourceImage: item.sourceImage });
+            const result = await generate3DView({ sourceImage: item.sourceImage, style });
 
             if(result.renderedImage) {
                 setCurrentImage(result.renderedImage);
@@ -133,6 +135,29 @@ const VisualizerId = () => {
                         </div>
 
                         <div className="panel-actions">
+                            <div className="style-selector">
+                                <Palette className="style-icon" />
+                                <select
+                                    value={selectedStyle}
+                                    onChange={(e) => setSelectedStyle(e.target.value as RenderStyleId)}
+                                    disabled={isProcessing}
+                                    className="style-select"
+                                >
+                                    {RENDER_STYLES.map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <Button
+                                size="sm"
+                                onClick={() => project && runGeneration(project)}
+                                className="regenerate"
+                                disabled={isProcessing || !project?.sourceImage}
+                            >
+                                <RefreshCcw className="w-4 h-4 mr-2" /> Re-render
+                            </Button>
                             <Button
                                 size="sm"
                                 onClick={handleExport}
