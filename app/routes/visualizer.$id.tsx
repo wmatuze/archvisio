@@ -1,11 +1,11 @@
 import { useNavigate, useOutletContext, useParams} from "react-router";
 import {useEffect, useRef, useState} from "react";
 import {generate3DView} from "../../lib/ai.action";
-import {Box, Download, Palette, RefreshCcw, Share2, X} from "lucide-react";
+import {AlertCircle, Box, Check, Download, Palette, RefreshCcw, Share2, X} from "lucide-react";
 import Button from "../../components/ui/Button";
 import {createProject, getProjectById} from "../../lib/puter.action";
 import {ReactCompareSlider, ReactCompareSliderImage} from "react-compare-slider";
-import {DEFAULT_STYLE_ID, RENDER_STYLES, type RenderStyleId} from "../../lib/constants";
+import {DEFAULT_STYLE_ID, RENDER_STYLES, SHARE_STATUS_RESET_DELAY_MS, type RenderStyleId} from "../../lib/constants";
 
 const VisualizerId = () => {
     const { id } = useParams();
@@ -20,6 +20,8 @@ const VisualizerId = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentImage, setCurrentImage] = useState<string | null>(null);
     const [selectedStyle, setSelectedStyle] = useState<RenderStyleId>(DEFAULT_STYLE_ID);
+    const [generationError, setGenerationError] = useState<string | null>(null);
+    const [shareStatus, setShareStatus] = useState<ShareStatus>('idle');
 
     const handleBack = () => navigate('/');
     const handleExport = () => {
@@ -33,11 +35,46 @@ const VisualizerId = () => {
         document.body.removeChild(link);
     }
 
+    const handleShare = async () => {
+        if (!project || !currentImage || shareStatus === 'saving') return;
+
+        const nextPublic = !project.isPublic;
+        setShareStatus('saving');
+
+        try {
+            const updatedItem: DesignItem = {
+                ...project,
+                isPublic: nextPublic,
+                sharedBy: nextPublic ? (userId ?? project.sharedBy ?? null) : null,
+                sharedAt: nextPublic ? new Date().toISOString() : null,
+            };
+
+            const saved = await createProject({
+                item: updatedItem,
+                visibility: nextPublic ? 'public' : 'private',
+            });
+
+            if (saved) {
+                setProject(saved);
+                setShareStatus('done');
+
+                if (nextPublic && saved.publicPath) {
+                    await navigator.clipboard.writeText(saved.publicPath);
+                }
+            }
+        } catch (e) {
+            console.error('Share failed:', e);
+        } finally {
+            setTimeout(() => setShareStatus('idle'), SHARE_STATUS_RESET_DELAY_MS);
+        }
+    };
+
     const runGeneration = async (item: DesignItem, style: RenderStyleId = selectedStyle) => {
         if(!id || !item.sourceImage) return;
 
         try {
             setIsProcessing(true);
+            setGenerationError(null);
             const result = await generate3DView({ sourceImage: item.sourceImage, style });
 
             if(result.renderedImage) {
@@ -60,7 +97,8 @@ const VisualizerId = () => {
                 }
             }
         } catch (error) {
-            console.error('Generation failed: ', error)
+            console.error('Generation failed: ', error);
+            setGenerationError('Rendering failed. Please try again or choose a different style.');
         } finally {
             setIsProcessing(false);
         }
@@ -166,15 +204,46 @@ const VisualizerId = () => {
                             >
                                 <Download className="w-4 h-4 mr-2" /> Export
                             </Button>
-                            <Button size="sm" onClick={() => {}} className="share">
-                                <Share2 className="w-4 h-4 mr-2" />
-                                Share
+                            <Button
+                                size="sm"
+                                onClick={handleShare}
+                                className={`share ${project?.isPublic ? 'is-shared' : ''}`}
+                                disabled={shareStatus === 'saving' || !currentImage}
+                            >
+                                {shareStatus === 'done' ? (
+                                    <><Check className="w-4 h-4 mr-2" /> {project?.isPublic ? 'Shared!' : 'Unshared'}</>
+                                ) : shareStatus === 'saving' ? (
+                                    <><RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                                ) : project?.isPublic ? (
+                                    <><Share2 className="w-4 h-4 mr-2" /> Unshare</>
+                                ) : (
+                                    <><Share2 className="w-4 h-4 mr-2" /> Share</>
+                                )}
                             </Button>
                         </div>
                     </div>
 
+                    {generationError && (
+                        <div className="render-error">
+                            <AlertCircle size={16} />
+                            <span>{generationError}</span>
+                            <button onClick={() => setGenerationError(null)} className="dismiss">
+                                <X size={14} />
+                            </button>
+                        </div>
+                    )}
+
                     <div className={`render-area ${isProcessing ? 'is-processing': ''}`}>
-                        {currentImage ? (
+                        {isProjectLoading ? (
+                            <div className="render-placeholder skeleton" />
+                        ) : !project ? (
+                            <div className="render-placeholder not-found">
+                                <AlertCircle size={32} />
+                                <h3>Project not found</h3>
+                                <p>This project may have been deleted or the link is invalid.</p>
+                                <Button size="sm" onClick={handleBack}>Back to Home</Button>
+                            </div>
+                        ) : currentImage ? (
                             <img src={currentImage} alt="AI Render" className="render-img" />
                         ) : (
                             <div className="render-placeholder">

@@ -105,6 +105,78 @@ export const getProjects = async () => {
     }
 }
 
+export const getPublicProjects = async (): Promise<DesignItem[]> => {
+    if (!PUTER_WORKER_URL) {
+        console.warn("Missing VITE_PUTER_WORKER_URL; skipping public projects fetch.");
+        return [];
+    }
+
+    try {
+        const response = await puter.workers.exec(
+            `${PUTER_WORKER_URL}/api/projects/public`,
+            { method: "GET" },
+        );
+
+        if (!response.ok) {
+            console.error("Failed to fetch public projects:", await response.text());
+            return [];
+        }
+
+        const data = (await response.json()) as { projects?: DesignItem[] | null };
+
+        return Array.isArray(data?.projects) ? data.projects : [];
+    } catch (error) {
+        console.error("Failed to fetch public projects:", error);
+        return [];
+    }
+};
+
+export const deleteProject = async ({ id }: { id: string }): Promise<boolean> => {
+    if (!PUTER_WORKER_URL) {
+        console.warn("Missing VITE_PUTER_WORKER_URL; skipping project delete.");
+        return false;
+    }
+
+    try {
+        const response = await puter.workers.exec(
+            `${PUTER_WORKER_URL}/api/projects/delete?id=${encodeURIComponent(id)}`,
+            { method: "POST" },
+        );
+
+        return response.ok;
+    } catch (error) {
+        console.error("Failed to delete project:", error);
+        return false;
+    }
+};
+
+export const submitEnterpriseInquiry = async (data: {
+    name: string;
+    email: string;
+    company: string;
+    message: string;
+}): Promise<boolean> => {
+    if (!PUTER_WORKER_URL) {
+        console.warn("Missing VITE_PUTER_WORKER_URL; skipping enterprise inquiry.");
+        return false;
+    }
+
+    try {
+        const response = await puter.workers.exec(
+            `${PUTER_WORKER_URL}/api/enterprise/inquiry`,
+            {
+                method: "POST",
+                body: JSON.stringify(data),
+            },
+        );
+
+        return response.ok;
+    } catch (error) {
+        console.error("Failed to submit enterprise inquiry:", error);
+        return false;
+    }
+};
+
 export const getProjectById = async ({ id }: { id: string }) => {
     if (!PUTER_WORKER_URL) {
         console.warn("Missing VITE_PUTER_WORKER_URL; skipping project fetch.");

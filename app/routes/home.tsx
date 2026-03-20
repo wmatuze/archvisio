@@ -1,7 +1,6 @@
 import type { Route } from "./+types/home";
 import Navbar from "../../components/Navbar";
 import {ArrowRight, ArrowUpRight, Clock, Layers} from "lucide-react";
-import Button from "../../components/ui/Button";
 import Upload from "../../components/Upload";
 import {useNavigate} from "react-router";
 import {useEffect, useRef, useState} from "react";
@@ -71,88 +70,78 @@ export default function Home() {
           <Navbar />
 
           <section className="hero">
-              <div className="announce">
-                  <div className="dot">
-                      <div className="pulse"></div>
-                  </div>
+              <div className="hero-text">
+                  <span className="announce">
+                      <span className="pulse-dot" />
+                      Public Beta
+                  </span>
 
-                  <p>Introducing ArchVisio 1.0</p>
+                  <h1>Turn floor plans into photorealistic renders</h1>
+
+                  <p className="subtitle">
+                      Upload any 2D floor plan and AI transforms it into a
+                      stunning 3D architectural visualization — no modeling
+                      skills required.
+                  </p>
+
+                  <div className="actions">
+                      <a href="#upload" className="cta">
+                          Get Started <ArrowRight className="icon" />
+                      </a>
+
+                      <a href="#projects" className="secondary-link">
+                          View your projects <ArrowUpRight size={14} />
+                      </a>
+                  </div>
               </div>
 
-              <h1>Build beautiful spaces at the speed of thought with ArchVisio</h1>
-
-              <p className="subtitle">
-                  ArchVisio is an AI-first design environment that helps you visualize, render, and ship architectural projects faster  than ever.
-              </p>
-
-              <div className="actions">
-                  <a href="#upload" className="cta">
-                      Start Building <ArrowRight className="icon" />
-                  </a>
-
-                  <Button variant="outline" size="lg" className="demo">
-                      Watch Demo
-                  </Button>
-              </div>
-
-              <div id="upload" className="upload-shell">
-                <div className="grid-overlay" />
-
-                  <div className="upload-card">
-                      <div className="upload-head">
-                          <div className="upload-icon">
-                              <Layers className="icon" />
-                          </div>
-
-                          <h3>Upload your floor plan</h3>
-                          <p>Supports JPG, PNG, formats up to 10MB</p>
-                      </div>
-
-                      <Upload onComplete={handleUploadComplete} />
+              <div id="upload" className="hero-upload">
+                  <div className="upload-label">
+                      <Layers size={18} className="upload-label-icon" />
+                      <span>Upload a floor plan</span>
                   </div>
+
+                  <Upload onComplete={handleUploadComplete} />
+
+                  <p className="upload-hint">Supports JPG &amp; PNG up to 10 MB</p>
               </div>
           </section>
 
-          <section className="projects">
-              <div className="section-inner">
-                  <div className="section-head">
-                      <div className="copy">
-                          <h2>Projects</h2>
-                          <p>Your latest work and shared community projects, all in one place.</p>
-                      </div>
+          {projects.length > 0 && (
+              <section id="projects" className="projects">
+                  <div className="section-bar">
+                      <h2>Your Projects</h2>
+                      <span className="count">{projects.length} total</span>
                   </div>
 
                   <div className="projects-grid">
-                      {projects.map(({id, name, renderedImage, sourceImage, timestamp}) => (
-                          <div key={id} className="project-card group" onClick={() => navigate(`/visualizer/${id}`)}>
+                      {projects.map(({id, name, renderedImage, sourceImage, timestamp}, index) => (
+                          <div
+                              key={id}
+                              className={`project-card group ${index === 0 ? 'featured' : ''}`}
+                              onClick={() => navigate(`/visualizer/${id}`)}
+                          >
                               <div className="preview">
-                                  <img  src={renderedImage || sourceImage} alt="Project"
-                                  />
-
-                                  <div className="badge">
-                                      <span>Community</span>
-                                  </div>
+                                  <img src={renderedImage || sourceImage} alt={name} />
                               </div>
 
                               <div className="card-body">
-                                  <div>
+                                  <div className="card-info">
                                       <h3>{name}</h3>
-
                                       <div className="meta">
                                           <Clock size={12} />
                                           <span>{new Date(timestamp).toLocaleDateString()}</span>
-                                          <span>By JS Mastery</span>
                                       </div>
                                   </div>
                                   <div className="arrow">
-                                      <ArrowUpRight size={18} />
+                                      <ArrowUpRight size={16} />
                                   </div>
                               </div>
                           </div>
                       ))}
                   </div>
-              </div>
-          </section>
+              </section>
+          )}
       </div>
   )
 }
